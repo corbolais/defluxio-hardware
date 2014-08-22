@@ -29,9 +29,6 @@
 #include <libopencm3/stm32/f4/nvic.h>
 #include "ticks.h"
 
-volatile uint32_t overflow_counter = 0;
-volatile uint32_t start_counter = 0;
-volatile uint32_t edges = 0;
 
 // maintain the state of a measurement
 typedef enum {
@@ -40,12 +37,17 @@ typedef enum {
   RUNNING
 } mstate_t;
 volatile mstate_t m_state = IDLE;
+volatile uint32_t cycles_during_measurement = 0;
+volatile uint32_t overcapture = 0;
+volatile uint32_t overflow_counter = 0;
+volatile uint32_t start_counter = 0;
+volatile uint32_t edges = 0;
 
 /* How many cycles do we use for a measurement? */
-static const uint32_t NUM_CYCLES = 50;
-static const uint32_t TIMER1_HZ = 84000000;
+static const uint32_t NUM_EDGES = 50;
+static const uint32_t TIMER1_HZ = 168000000;
 static const uint32_t TIMER1_PERIOD = 0xFFFF;
-static const uint32_t TIMER1_PRESCALER = 0x0F;
+static const uint32_t TIMER1_PRESCALER = 0xA8; // 1MHz sample rate
 
 static void clock_setup(void) {
 
@@ -65,28 +67,23 @@ static void clock_setup(void) {
 	timer_reset(TIM1);
 	/* Configure timer1. */
 	timer_set_mode(TIM1,
-			TIM_CR1_CKD_CK_INT,		// Internal 84 Mhz clock
+			TIM_CR1_CKD_CK_INT,		// Internal clock
 			TIM_CR1_CMS_EDGE,			// Edge synchronization
 			TIM_CR1_DIR_UP);			// Count upward
 	timer_set_prescaler(TIM1, TIMER1_PRESCALER);
 	timer_set_period(TIM1, TIMER1_PERIOD); //Sets TIM1_ARR
-	//timer_set_repetition_counter(TIM1, 1);
 	timer_continuous_mode(TIM1);
-	/* Configure PE11 (AF1: TIM1_CH2) (SYNC_IN). */
-	rcc_peripheral_enable_clock(&RCC_AHB1ENR, RCC_AHB1ENR_IOPEEN);
-	gpio_mode_setup(GPIOE, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO11);
-	gpio_set_af(GPIOE, GPIO_AF1, GPIO11);
-	/* Configure PE13: Toggle pin on falling edge via interrupt */
-	rcc_peripheral_enable_clock(&RCC_AHB1ENR, RCC_AHB1ENR_IOPEEN);
-	gpio_mode_setup(GPIOE, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLDOWN, GPIO13);
+		/* Configure PE13: Toggle pin on falling edge via interrupt */
+	//rcc_peripheral_enable_clock(&RCC_AHB1ENR, RCC_AHB1ENR_IOPEEN);
+	//gpio_mode_setup(GPIOE, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLDOWN, GPIO13);
 	/* Configure input capture. */
 	timer_ic_disable(TIM1, TIM_IC2);
 	timer_ic_set_polarity(TIM1, TIM_IC2, TIM_IC_RISING);
 	timer_ic_set_prescaler(TIM1, TIM_IC2, TIM_IC_PSC_OFF);
+	timer_ic_set_input(TIM1, TIM_IC2, TIM_IC_IN_TI2);
 	// See RM, p. 561: digital filter
 	//timer_ic_set_filter(TIM1, TIM_IC2, TIM_IC_DTF_DIV_32_N_8);
 	timer_ic_set_filter(TIM1, TIM_IC2, TIM_IC_OFF);
-	timer_ic_set_input(TIM1, TIM_IC2, TIM_IC_IN_TI2);
 	timer_ic_enable(TIM1, TIM_IC2);
 	/* Enable counter. */
 	timer_enable_counter(TIM1);
@@ -106,8 +103,6 @@ void tim1_up_tim10_isr(void) {
 	}
 }
 
-volatile uint32_t cycles_during_measurement = 0;
-volatile uint32_t overcapture = 0;
 
 void tim1_cc_isr(void) {
 	if(timer_get_flag(TIM1, TIM_SR_CC2IF)) {
@@ -119,15 +114,17 @@ void tim1_cc_isr(void) {
 		//gpio_toggle(GPIOE, GPIO13); /* toggle pin for 'scope debugging */
 		if (m_state == PENDING) { // start measurement
 			edges=0;
+			start_counter = current_counter;
 			overflow_counter = 0;
 			m_state = RUNNING;
-			start_counter = timer_get_counter(TIM1);
 		}
-		if (edges == NUM_CYCLES) { // end measurement
-			cycles_during_measurement = ((current_overflow*(TIMER1_PERIOD)+current_counter-start_counter));
+		if (edges == NUM_EDGES) { // end measurement
+			cycles_during_measurement = 
+						(current_overflow*TIMER1_PERIOD) + current_counter - start_counter;
 			m_state = IDLE;
+		} else {
+			edges += 1;
 		}
-		edges += 1;
 	}
 }
 
@@ -147,12 +144,15 @@ static void usart_setup(void) {
 static void gpio_setup(void) {
 	/* Setup GPIO pin GPIO12 on GPIO port D for LED. */
 	gpio_mode_setup(GPIOD, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO12);
-
 	/* Setup GPIO pins for USART2 transmit. */
 	gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO2);
-
 	/* Setup USART2 TX pin as alternate function. */
 	gpio_set_af(GPIOA, GPIO_AF7, GPIO2);
+/* Configure PE11 (AF1: TIM1_CH2) (SYNC_IN). */
+	rcc_peripheral_enable_clock(&RCC_AHB1ENR, RCC_AHB1ENR_IOPEEN);
+	gpio_mode_setup(GPIOE, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO11);
+	gpio_set_af(GPIOE, GPIO_AF1, GPIO11);
+
 }
 
 int main(void) {
@@ -168,8 +168,9 @@ int main(void) {
 		while (m_state != IDLE) ;; /* wait for measurement to finish */
 
 		printf("Cycles during measurement: %" PRId32 ", no. of overflows: %" PRId32 ", overcapture: %" PRId32"\n", cycles_during_measurement, overflow_counter, overcapture);
-		double avg_period = TIMER1_HZ/(cycles_during_measurement*(TIMER1_PRESCALER+1)*NUM_CYCLES*1.0);
-		printf("Frequency: %f, delta %3.0f mHz\n", 1/(avg_period), (1/(avg_period)-50)*1000);
+		double avg_period = (double) cycles_during_measurement /
+			(((double) TIMER1_HZ / (double) (TIMER1_PRESCALER+1)) * edges);
+		printf("Period: %1.6f, Frequency: %f, delta %3.0f mHz\n", avg_period, 1/(avg_period), (1/(avg_period)-50)*1000);
 		fflush(stdout);
 	}
 	return 0;
