@@ -1,20 +1,25 @@
-Project template for STM32F4-Discovery Boards
-=============================================
-
-This is a simple bare-metal project template for the STM32F4 Discovery board.
-It is based on:
-
-* [libopencm3 example code](https://github.com/libopencm3/libopencm3-examples)
+Netzsinus Firmware
+==================
 
 Prerequisites
 -------------
+The firmware has been successfully build on the following host systems:
+
+* Ubuntu Linux 14.04
+* Mac OS Mavericks
+
+Please install the following prerequisites first:
 
 * Install [gcc-arm-embedded](https://launchpad.net/gcc-arm-embedded) and
   make sure the arm-none-eabi-*-commands are in your path
 * Install [OpenOCD](http://openocd.sourceforge.net/)
 
-Usage
------
+Then, clone the repository and change into the firmware subdirectory:
+
+	$ cd defluxio-hardware/firmware
+
+Building the firmware
+---------------------
 
 First, you need to grab and compile a copy of libopencm3:
 
@@ -38,21 +43,21 @@ connect a 3V3 TTL adaptor to PA2 (USART2_TX). You can use `screen` to see the ou
 
 	$ screen /dev/ttyUSB0 115200
 
+Please note: as of commit adc3d7d4, the firmware does only print an info
+line when starting up. It will print frequency information only if a
+plausible sine wave is detected, so please connect the AC adaptor. You
+should see something similar to this:
 
-USART Port Mappings
--------------------
-
-Currently, the example uses USART2. The other USART ports can also be used, for example:
-
-* USART1: PB6, PB7
-* USART6: PC6, PC7 Note: If you use the STM32F4 Expansion board, the
-  UART6 should be mapped to the serial port of this board. However, I
-  wasn't able to get this running. Attaching an FTDI USB-TTL-Adapter works fine for these pins.
-
-Tested Host Systems
--------------------
-
-The template has been tested on the following host systems:
-
-* Ubuntu Linux 14.04
-* Mac OS Mavericks
+````
+I;Defluxio Frequency Measurement Hardware started.
+I;Frequency: 50.022183 Hz, delta:  22 mHz
+F;50.02218
+I;Frequency: 50.018508 Hz, delta:  19 mHz
+F;50.01851
+I;Frequency: 50.016797 Hz, delta:  17 mHz
+F;50.01680
+I;Frequency: 50.015841 Hz, delta:  16 mHz
+F;50.01584
+I;Frequency: 50.016847 Hz, delta:  17 mHz
+F;50.01685
+````
