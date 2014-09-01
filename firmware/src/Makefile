@@ -19,7 +19,7 @@
 
 BINARY = main
 
-OBJS = newlib_stubs.o ticks.o
+OBJS = newlib_stubs.o ticks.o freq_capture.o log_formatter.o
 
 LDSCRIPT = ../stm32f4-discovery.ld
 
