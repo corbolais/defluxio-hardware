@@ -35,7 +35,7 @@ schematic:
 
 ![Schematic](https://raw.githubusercontent.com/netzsinus/defluxio-hardware/master/hardware/pics/schaltplan-v0.2.jpg)
 
-I used a protoboard and THT components to build this circuit as a shield
+The opamp is an TLC393 comparator. I used a protoboard and THT components to build this circuit as a shield
 for the STM32F4 discovery board. This is my setup:
 
 ![Overview](https://raw.githubusercontent.com/netzsinus/defluxio-hardware/master/hardware/pics/hw-v02-overview.jpg)
