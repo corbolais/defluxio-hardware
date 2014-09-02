@@ -26,6 +26,11 @@ the components.
 * A raspberry pi which runs a simple Go daemon to read the data from the
 hardware and transmit it to https://netzsin.us.
 
+The current design powers the STM32F4 from the Raspberry Pi. It would also 
+be possible to power the system from the 9VAC power adaptor, but initial 
+experiments showed distorsions in the sine wave caused by the bridge rectifier.
+A precision bridge rectifier setup could solve this.
+
 Building your own device
 ------------------------
 
