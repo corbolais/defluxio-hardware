@@ -3,7 +3,7 @@ Netzsinus Firmware
 
 Prerequisites
 -------------
-The firmware has been successfully build on the following host systems:
+The firmware has been successfully built on the following host systems:
 
 * Ubuntu Linux 14.04
 * Mac OS Mavericks
