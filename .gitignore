@@ -4,3 +4,4 @@
 *.map
 *.o
 *.d
+hardware/pcb/*.[bs]#[0-9]
