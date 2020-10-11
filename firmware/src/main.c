@@ -55,10 +55,10 @@ static void usart_setup(void) {
 }
 
 static void led_setup(void) {
-	/* Setup GPIO pin GPIO12 on GPIO port D for LED. */
-	gpio_mode_setup(GPIOD, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO12);
-	/* Enable GPIOD clock for LED. */
-	rcc_periph_clock_enable(RCC_GPIOD);
+	/* Setup GPIO pin GPIO0 on GPIO port E (PE0) for LED. */
+	gpio_mode_setup(GPIOE, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO0);
+	/* Enable GPIOE clock for LED. */
+	rcc_periph_clock_enable(RCC_GPIOE);
 }
 
 int main(void) {
@@ -69,7 +69,7 @@ int main(void) {
 	log_info("Defluxio Frequency Measurement Hardware started.");
 	char buf[100];
 	while (1) {
-		gpio_toggle(GPIOD, GPIO12);	/* LED as 'alive' signal*/
+		gpio_toggle(GPIOE, GPIO0);	/* LED as 'alive' signal*/
 		freq_capture_start();
 		while (freq_get_state() != IDLE) ;; /* wait for measurement to finish */
 		double freq = freq_get_result();
